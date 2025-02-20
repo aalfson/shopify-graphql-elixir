@@ -15,11 +15,18 @@ defmodule Shopify.GraphQL.Response do
     body =
       response
       |> Map.get(:body)
-      |> config.json_codec.decode!()
+      |> maybe_json_decode(config, response)
 
     %__MODULE__{}
     |> Map.put(:body, body)
     |> Map.put(:headers, Map.get(response, :headers))
     |> Map.put(:status_code, Map.get(response, :status_code))
   end
+
+  # As of 20 Feb 2025, Shopify returns html instead of json
+  # on a 502 Bad Gateway response. When using Jason, this results in a
+  # Jason.DecodeError error when calling config.json_codec.decode!
+  defp maybe_json_decode(body, _, %{status_code: 502}), do: body
+
+  defp maybe_json_decode(body, config, _), do: config.json_codec.decode!(body)
 end
